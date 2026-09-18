@@ -1,13 +1,43 @@
-# Sampah Kutukan (JANGAN SAMPAI MASUK GIT)
+# =========================
+# 1. DATA VOLUMES (THE TRAGEDY PREVENTION)
+# =========================
+# Gembok folder data MinIO dan PostgreSQL biar kaga nyangkut lagi
 minio_data/
 core_engine/minio_data/
+simulator_db_data/
+core_engine/simulator_db_data/
+groenery-datalake/
 
-# Sampah Terraform
+# Cegah file mock data nyasar
+*.csv
+*.json
+*.parquet
+
+# =========================
+# 2. TERRAFORM SHIELD
+# =========================
+# Cegah state dan token rahasia bocor ke publik
 .terraform/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+*.tfvars
+*.tfvars.json
 
-# Sampah Python
+# =========================
+# 3. PYTHON & ENVIRONMENTS
+# =========================
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.env
+.venv/
+venv/
+env/
+
+# =========================
+# 4. OS & IDE JUNK
+# =========================
+.vscode/
+.DS_Store
+Thumbs.db
