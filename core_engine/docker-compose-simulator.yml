@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # SHARD 01: THE HEAVY WARZONE (Sultan & Bot)
+  # ==========================================
+  postgres_shard_01:
+    image: postgres:15-alpine
+    container_name: emarkrtz_shard_01
+    environment:
+      POSTGRES_USER: emarkrtz_admin
+      POSTGRES_PASSWORD: EnterpriseSkew2026!
+      POSTGRES_DB: emarkrtz_shard_01
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./simulator_db_data/shard_01:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - emarkrtz_simulator_net
+    command: ["postgres", "-c", "wal_level=logical"] # Wajib aktifin logical replication buat nyuapin PeerDB nanti!
+
+  # ==========================================
+  # SHARD 02: REGULAR NODE A
+  # ==========================================
+  postgres_shard_02:
+    image: postgres:15-alpine
+    container_name: emarkrtz_shard_02
+    environment:
+      POSTGRES_USER: emarkrtz_admin
+      POSTGRES_PASSWORD: EnterpriseSkew2026!
+      POSTGRES_DB: emarkrtz_shard_02
+    ports:
+      - "5433:5432" # Akses dari host pakai port 5433
+    volumes:
+      - ./simulator_db_data/shard_02:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - emarkrtz_simulator_net
+    command: ["postgres", "-c", "wal_level=logical"]
+
+  # ==========================================
+  # SHARD 03: REGULAR NODE B
+  # ==========================================
+  postgres_shard_03:
+    image: postgres:15-alpine
+    container_name: emarkrtz_shard_03
+    environment:
+      POSTGRES_USER: emarkrtz_admin
+      POSTGRES_PASSWORD: EnterpriseSkew2026!
+      POSTGRES_DB: emarkrtz_shard_03
+    ports:
+      - "5434:5432" # Akses dari host pakai port 5434
+    volumes:
+      - ./simulator_db_data/shard_03:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - emarkrtz_simulator_net
+    command: ["postgres", "-c", "wal_level=logical"]
+
+networks:
+  emarkrtz_simulator_net:
+    driver: bridge
+    name: emarkrtz_simulator_net
