@@ -1,0 +1,60 @@
+# =====================================================================
+# REDPANDA VALUES - THE JAVA KILLER (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+statefulset:
+  # Set to 1 replica (Developer Mode) for stable single-node VPS operation
+  replicas: 1
+
+config:
+  cluster:
+    developer_mode: true
+    # Strict Data Contract: Disable auto-creation to prevent rogue topics
+    auto_create_topics_enabled: false
+
+resources:
+  cpu:
+    cores: 1
+  memory:
+    container:
+      max: 2.5Gi
+
+storage:
+  persistentVolume:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+
+# =====================================================================
+# 🖥️ REDPANDA CONSOLE (THE DASHBOARD)
+# =====================================================================
+console:
+  enabled: true
+  service:
+    type: NodePort
+    # Opening port statistics to allow direct access via the VPS IP address
+    nodePort: 30080 
+
+# =====================================================================
+# ⚙️ BIG RED BUTTON MAGIC: AUTOMATED TOPIC PROVISIONING
+# =====================================================================
+post_install_job:
+  enabled: true
+  podTemplate:
+    spec:
+      containers:
+        - name: rpk-topic-builder
+          image: docker.redpanda.com/redpandadata/redpanda:latest
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              # Create 3 partitions for each master table to map the 3 PostgreSQL Shards
+              rpk topic create cdc.all_shards.stores -p 3
+              rpk topic create cdc.all_shards.products -p 3
+              rpk topic create cdc.all_shards.inventory -p 3
+              rpk topic create cdc.all_shards.customers -p 3
+              rpk topic create cdc.all_shards.orders -p 3
+              rpk topic create cdc.all_shards.order_lines -p 3
+              
+              # Quarantine topic for Benthos Contract Validation errors
+              rpk topic create dlq.ingestion_errors -p 1

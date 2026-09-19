@@ -10,12 +10,12 @@ resource "hcloud_server" "k8s_production" {
   location    = "nbg1"
   ssh_keys    = [hcloud_ssh_key.k8s_admin.id]
 
-  # Cloud-Init: Instalasi Kubeadm, Kubelet, Kubectl, dan Containerd
+  # Cloud-Init: Installation of Kubeadm, Kubelet, Kubectl, and Containerd
   user_data = <<-EOF
     #!/bin/bash
     set -e
 
-    # 1. Persiapan Kernel & Networking untuk K8s
+    # 1. Preparation of Kernel & Networking for K8s
     cat <<EOT | tee /etc/modules-load.d/k8s.conf
     overlay
     br_netfilter
@@ -30,7 +30,7 @@ resource "hcloud_server" "k8s_production" {
     EOT
     sysctl --system
 
-    # 2. Instalasi Container Runtime (Containerd)
+    # 2. Container Runtime (Containerd) Installation
     apt-get update -y
     apt-get install -y ca-certificates curl gnupg lsb-release apt-transport-https
     mkdir -p /etc/apt/keyrings
@@ -43,26 +43,26 @@ resource "hcloud_server" "k8s_production" {
     systemctl restart containerd
     systemctl enable containerd
 
-    # 3. Instalasi Komponen Kubernetes (v1.30)
+    # 3. Kubernetes Component Installation (v1.30)
     curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
     apt-get update -y
     apt-get install -y kubelet kubeadm kubectl
     apt-mark hold kubelet kubeadm kubectl
 
-    # 4. Inisialisasi K8s Control Plane
+    # 4. Initialize K8s Control Plane
     kubeadm init --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=NumCPU
 
-    # 5. Konfigurasi Akses Kubeconfig
+    # 5. Kubeconfig Access Configuration
     mkdir -p /root/.kube
     cp -i /etc/kubernetes/admin.conf /root/.kube/config
     chown $(id -u):$(id -g) /root/.kube/config
 
-    # 6. Pasang Jaringan Pod (Flannel CNI)
+    # 6. Install Pod Network (Flannel CNI)
     export KUBECONFIG=/etc/kubernetes/admin.conf
     kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
-    # 7. Hapus Taint agar Pods Produksi bisa jalan di Node ini
+    # 7. Remove Taint so Production Pods can run on this Node
     kubectl taint nodes --all node-role.kubernetes.io/control-plane-
   EOF
 }

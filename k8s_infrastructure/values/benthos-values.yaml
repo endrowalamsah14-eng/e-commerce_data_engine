@@ -1,0 +1,77 @@
+# =====================================================================
+# BENTHOS VALUES - THE DATA CONTRACT & ROUTER (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+replicaCount: 2
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+# ---------------------------------------------------------------------
+# PIPELINE CONFIGURATION
+# ---------------------------------------------------------------------
+config:
+  # 1. INPUT: Consume from Redpanda Unified Topics
+  input:
+    kafka_franz:
+      seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+      topics: 
+        - "cdc.all_shards.orders"
+        - "cdc.all_shards.order_lines"
+      consumer_group: "benthos-router-group"
+
+  # 2. PROCESSORS: Data Contract Validation & Payload Flattening via Bloblang
+  pipeline:
+    processors:
+      - bloblang: |
+          # Extract metadata to track data origin
+          meta topic = @kafka_topic
+          meta partition = @kafka_partition
+          
+          # STRICT DATA CONTRACT: Reject payloads missing critical identifiers
+          if this.store_id == null || this.order_id == null {
+            meta error_type = "schema_violation_missing_keys"
+            throw("Contract Violation: Missing store_id or order_id")
+          }
+          
+          # FLATTENING: Standardize CDC payload structure for downstream sinks
+          root.id = this.order_id | this.line_id
+          root.store_identifier = this.store_id
+          root.transaction_payload = this
+          root.ingested_at = now()
+
+      # Catch block to tag failed transformations for the DLQ routing
+      - catch:
+          - bloblang: |
+              meta is_failed = true
+              root.error_message = error()
+              root.original_payload = this
+
+  # 3. OUTPUT: Dynamic Routing (The Triple-Pronged Attack)
+  output:
+    switch:
+      # Rute 1: Failed Data -> Dead Letter Queue (DLQ) in Redpanda
+      - check: '@is_failed == true'
+        output:
+          kafka_franz:
+            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+            topic: "dlq.ingestion_errors"
+
+      # Rute 2: Operational Orders -> ScyllaDB (Simulated via Kafka out for decoupling)
+      - check: '@topic == "cdc.all_shards.orders"'
+        output:
+          kafka_franz:
+            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+            topic: "sink.scylladb.orders"
+
+      # Rute 3: Order Lines -> Lakehouse/MinIO (Simulated via Kafka out for decoupling)
+      - check: '@topic == "cdc.all_shards.order_lines"'
+        output:
+          kafka_franz:
+            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+            topic: "sink.minio.order_lines"

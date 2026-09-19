@@ -1,0 +1,53 @@
+# =====================================================================
+# PEERDB VALUES - CDC ENGINE (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+server:
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+worker:
+  # MAGIC NUMBER: Set to 3 Replicas.
+  # Dedicates exactly 1 Worker pod per PostgreSQL Shard.
+  # Ensures traffic spikes in Shard 01 (The Warzone) do not degrade CDC ingestion throughput in Shards 02 & 03.
+  replicaCount: 3
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+# =====================================================================
+# THE ORCHESTRATOR INTEGRATION
+# =====================================================================
+temporal:
+  # Disable the built-in Temporal instance to conserve Hetzner VPS resources.
+  enabled: false
+  external:
+    # Route PeerDB to utilize the centralized Control Plane (Temporal)
+    # provisioned within the data_stack.tf core infrastructure.
+    host: "temporal-frontend.emarkrtz-production.svc.cluster.local"
+    port: 7233
+
+# =====================================================================
+# INTERNAL CATALOG
+# =====================================================================
+postgresql:
+  # Provisioned exclusively for PeerDB's internal metadata state.
+  # (Completely isolated from the PostgreSQL Simulator shards).
+  enabled: true
+  primary:
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
