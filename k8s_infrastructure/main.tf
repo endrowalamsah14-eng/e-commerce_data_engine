@@ -65,9 +65,18 @@ resource "hcloud_server" "k8s_production" {
     # 7. Remove Taint so Production Pods can run on this Node
     kubectl taint nodes --all node-role.kubernetes.io/control-plane-
   EOF
+
+  # =================================================================
+  # THE HOTFIX: Preventing Terraform from deleting servers due to script changes
+  # =================================================================
+  lifecycle {
+    ignore_changes = [
+      user_data,
+    ]
+  }
 }
 
 output "k8s_public_ip" {
-  description = "IP Publik K8s Produksi & Simulator"
+  description = "Public IP of the K8s Production & Simulator"
   value       = hcloud_server.k8s_production.ipv4_address
 }

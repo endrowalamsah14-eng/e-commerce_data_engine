@@ -1,0 +1,50 @@
+# =====================================================================
+# MINIO VALUES - HISTORICAL LAKEHOUSE (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+# Run MinIO in standalone mode (single drive) suitable for a single-node VPS.
+mode: standalone
+replicas: 1
+
+# Define credentials for the S3 API and the Web Console authentication.
+rootUser: "admin"
+rootPassword: "SuperSecretPassword123!"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+persistence:
+  enabled: false
+
+# ---------------------------------------------------------------------
+# BIG RED BUTTON MAGIC: AUTOMATED BUCKET PROVISIONING
+# ---------------------------------------------------------------------
+# Automatically create the foundational data lake layers upon initialization
+# to establish a medallion architecture (Raw, Silver, Gold).
+buckets:
+  - name: "lakehouse-raw"
+    policy: none
+    purge: false
+  - name: "peerdbbucket"
+    policy: none
+    purge: false
+  - name: "lakehouse-silver"
+    policy: none
+    purge: false
+  - name: "lakehouse-gold"
+    policy: none
+    purge: false
+
+# ---------------------------------------------------------------------
+# 🖥️ MINIO CONSOLE (THE DASHBOARD)
+# ---------------------------------------------------------------------
+consoleService:
+  type: NodePort
+  port: 9001
+  # Expose a static port for direct browser access via the Hetzner VPS IP
+  nodePort: 30090

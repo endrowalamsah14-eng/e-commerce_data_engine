@@ -1,0 +1,23 @@
+# =====================================================================
+# METABASE VALUES - BUSINESS INTELLIGENCE (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 2Gi
+
+extraEnv:
+  - name: JAVA_OPTS
+    value: "-Xmx768m"
+
+# Expose Metabase UI via NodePort for direct access via Hetzner IP
+service:
+  type: NodePort
+  port: 80
+  nodePort: 30300

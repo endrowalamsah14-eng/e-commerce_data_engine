@@ -16,62 +16,49 @@ resources:
 # PIPELINE CONFIGURATION
 # ---------------------------------------------------------------------
 config:
-  # 1. INPUT: Consume from Redpanda Unified Topics
   input:
     kafka_franz:
       seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-      topics: 
+      topics:
         - "cdc.all_shards.orders"
         - "cdc.all_shards.order_lines"
       consumer_group: "benthos-router-group"
 
-  # 2. PROCESSORS: Data Contract Validation & Payload Flattening via Bloblang
   pipeline:
     processors:
-      - bloblang: |
-          # Extract metadata to track data origin
-          meta topic = @kafka_topic
-          meta partition = @kafka_partition
-          
-          # STRICT DATA CONTRACT: Reject payloads missing critical identifiers
-          if this.store_id == null || this.order_id == null {
-            meta error_type = "schema_violation_missing_keys"
-            throw("Contract Violation: Missing store_id or order_id")
+      - mapping: |
+          root._contract_error = if this.store_id == null {
+            "missing_store_id"
+          } else if this.order_id == null {
+            "missing_order_id"
+          } else if metadata("kafka_topic") == "cdc.all_shards.order_lines" && this.line_id == null {
+            "missing_line_id"
+          } else {
+            deleted()
           }
-          
-          # FLATTENING: Standardize CDC payload structure for downstream sinks
-          root.id = this.order_id | this.line_id
-          root.store_identifier = this.store_id
-          root.transaction_payload = this
-          root.ingested_at = now()
 
-      # Catch block to tag failed transformations for the DLQ routing
-      - catch:
-          - bloblang: |
-              meta is_failed = true
-              root.error_message = error()
-              root.original_payload = this
+      - mapping: |
+          root.contract_error = this._contract_error
+          root.original_payload = if this._contract_error != null { this } else { deleted() }
+          root.id = if this._contract_error == null { this.order_id } else { deleted() }
+          root.store_identifier = if this._contract_error == null { this.store_id } else { deleted() }
+          root.ingested_at = if this._contract_error == null { now() } else { deleted() }
 
-  # 3. OUTPUT: Dynamic Routing (The Triple-Pronged Attack)
   output:
     switch:
-      # Rute 1: Failed Data -> Dead Letter Queue (DLQ) in Redpanda
-      - check: '@is_failed == true'
-        output:
-          kafka_franz:
-            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-            topic: "dlq.ingestion_errors"
-
-      # Rute 2: Operational Orders -> ScyllaDB (Simulated via Kafka out for decoupling)
-      - check: '@topic == "cdc.all_shards.orders"'
-        output:
-          kafka_franz:
-            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-            topic: "sink.scylladb.orders"
-
-      # Rute 3: Order Lines -> Lakehouse/MinIO (Simulated via Kafka out for decoupling)
-      - check: '@topic == "cdc.all_shards.order_lines"'
-        output:
-          kafka_franz:
-            seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-            topic: "sink.minio.order_lines"
+      cases:
+        - check: this._contract_error != null
+          output:
+            kafka_franz:
+              seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+              topic: "dlq.ingestion_errors"
+        - check: meta("kafka_topic") == "cdc.all_shards.orders"
+          output:
+            kafka_franz:
+              seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+              topic: "sink.scylladb.orders"
+        - check: meta("kafka_topic") == "cdc.all_shards.order_lines"
+          output:
+            kafka_franz:
+              seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
+              topic: "sink.minio.order_lines"

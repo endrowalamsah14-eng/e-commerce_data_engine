@@ -1,0 +1,70 @@
+# =====================================================================
+# TEMPORAL VALUES - THE CONTROL PLANE (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+server:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  config:
+    persistence:
+      defaultStore: default
+      visibilityStore: visibility
+      datastores:
+        default:
+          sql:
+            pluginName: postgres12
+            driverName: postgres12
+            databaseName: temporal
+            connectAddr: temporal-postgresql:5432
+            connectProtocol: tcp
+            user: temporal
+            password: temporal-dev-password
+        visibility:
+          sql:
+            pluginName: postgres12
+            driverName: postgres12
+            databaseName: temporal
+            connectAddr: temporal-postgresql:5432
+            connectProtocol: tcp
+            user: temporal
+            password: temporal-dev-password
+
+internal-frontend:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+history:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+matching:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+worker:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi

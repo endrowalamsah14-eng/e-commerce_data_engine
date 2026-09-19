@@ -21,9 +21,7 @@ resources:
 
 storage:
   persistentVolume:
-    enabled: true
-    size: 20Gi
-    storageClass: ""
+    enabled: false
 
 # =====================================================================
 # 🖥️ REDPANDA CONSOLE (THE DASHBOARD)
@@ -39,7 +37,7 @@ console:
 # ⚙️ BIG RED BUTTON MAGIC: AUTOMATED TOPIC PROVISIONING
 # =====================================================================
 post_install_job:
-  enabled: true
+  enabled: false
   podTemplate:
     spec:
       containers:
@@ -58,3 +56,6 @@ post_install_job:
               
               # Quarantine topic for Benthos Contract Validation errors
               rpk topic create dlq.ingestion_errors -p 1
+
+tls:
+  enabled: false

@@ -1,0 +1,67 @@
+# =====================================================================
+# RISINGWAVE VALUES - REAL-TIME STREAMING DB (HETZNER VPS OPTIMIZED)
+# =====================================================================
+
+# Enable embedded etcd and MinIO specifically for RisingWave's internal state management.
+# This prevents the need for an external state backend cluster during this phase.
+tags:
+  etcd: true
+  minio: true
+  postgresql: true
+
+etcd:
+  persistence:
+    enabled: false
+
+minio:
+  persistence:
+    enabled: false
+
+postgresql:
+  primary:
+    persistence:
+      enabled: false
+
+# 1. The Metadata Management Node
+metaNode:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# 2. The Heavy Lifter (Stream & Batch Execution Engine)
+computeNode:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi
+
+# 3. The Query Interface (PostgreSQL Wire Protocol Compatible)
+frontendNode:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# 4. The Storage Optimizer (Handles LSM-Tree Compactions)
+compactorNode:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi

@@ -13,7 +13,7 @@ terraform {
     # New Helm Provider
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.11.0"
+      version = "~> 2.17"
     }
   }
 }

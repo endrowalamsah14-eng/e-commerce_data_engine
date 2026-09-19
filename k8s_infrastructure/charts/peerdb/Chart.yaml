@@ -1,0 +1,5 @@
+apiVersion: v2
+name: peerdb
+description: Minimal PeerDB deployment using official PeerDB images
+version: 0.1.0
+appVersion: stable-v0.37.7

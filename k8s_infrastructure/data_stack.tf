@@ -7,6 +7,79 @@ resource "kubernetes_namespace" "data_stack" {
   }
 }
 
+resource "helm_release" "local_path_provisioner" {
+  name       = "local-path-provisioner"
+  repository = "https://charts.containeroo.ch"
+  chart      = "local-path-provisioner"
+  namespace  = "kube-system"
+
+  set {
+    name  = "storageClass.defaultClass"
+    value = "true"
+  }
+}
+
+resource "kubernetes_namespace" "scylla_operator" {
+  metadata {
+    name = "scylla-operator"
+  }
+}
+
+resource "helm_release" "temporal_postgresql" {
+  name       = "temporal-postgresql"
+  repository = "https://charts.bitnami.com/bitnami"
+  chart      = "postgresql"
+  version    = "15.5.38"
+  namespace  = kubernetes_namespace.data_stack.metadata[0].name
+
+  values = [yamlencode({
+    image = {
+      repository = "bitnamilegacy/postgresql"
+      tag        = "16.4.0-debian-12-r14"
+    }
+    auth = {
+      username = "temporal"
+      password = "temporal-dev-password"
+      database = "temporal"
+    }
+    primary = {
+      persistence = {
+        enabled = false
+      }
+    }
+  })]
+}
+
+resource "helm_release" "cert_manager" {
+  name             = "cert-manager"
+  repository       = "https://charts.jetstack.io"
+  chart            = "cert-manager"
+  version          = "v1.16.2"
+  namespace        = "cert-manager"
+  create_namespace = true
+
+  set {
+    name  = "crds.enabled"
+    value = "true"
+  }
+}
+
+resource "helm_release" "scylla_operator" {
+  name             = "scylla-operator"
+  repository       = "https://scylla-operator-charts.storage.googleapis.com/stable"
+  chart            = "scylla-operator"
+  version          = "v1.22.0"
+  namespace        = kubernetes_namespace.scylla_operator.metadata[0].name
+  create_namespace = false
+
+  set {
+    name  = "replicas"
+    value = "1"
+  }
+
+  depends_on = [kubernetes_namespace.scylla_operator, helm_release.cert_manager]
+}
+
 # ==============================================================================
 # 1. THE CONTROL PLANE (ORCHESTRATOR)
 # ==============================================================================
@@ -17,6 +90,8 @@ resource "helm_release" "temporal" {
   namespace        = kubernetes_namespace.data_stack.metadata[0].name
   
   values = [file("${path.module}/values/temporal-values.yaml")]
+
+  depends_on = [helm_release.temporal_postgresql]
 }
 
 # ==============================================================================
@@ -32,15 +107,13 @@ resource "helm_release" "redpanda" {
 }
 
 resource "helm_release" "peerdb" {
-  name             = "peerdb"
-  repository       = "https://peerdb-io.github.io/charts"
-  chart            = "peerdb"
-  namespace        = kubernetes_namespace.data_stack.metadata[0].name
-  
+  name      = "peerdb"
+  chart     = "${path.module}/charts/peerdb"
+  namespace = kubernetes_namespace.data_stack.metadata[0].name
+
   values = [file("${path.module}/values/peerdb-values.yaml")]
 
-  # PeerDB must wait for Redpanda to be fully operational
-  depends_on = [helm_release.redpanda]
+  depends_on = [helm_release.temporal, helm_release.redpanda]
 }
 
 # ==============================================================================
@@ -62,14 +135,16 @@ resource "helm_release" "benthos" {
 # 4. THE DESTINATIONS (TRIPLE-PRONGED ATTACK)
 # ==============================================================================
 
-# Route 1: Hot Operational Store
+# Route 1: Hot Operational Store (FIXED - OFFICIAL REPOSITORY)
 resource "helm_release" "scylladb" {
   name             = "scylladb"
-  repository       = "https://scylladb.github.io/scylla-helm-charts"
+  repository       = "https://scylla-operator-charts.storage.googleapis.com/stable"
   chart            = "scylla"
   namespace        = kubernetes_namespace.data_stack.metadata[0].name
   
   values = [file("${path.module}/values/scylladb-values.yaml")]
+
+  depends_on = [helm_release.scylla_operator]
 }
 
 # Route 2: Real-Time DB & Alerts
