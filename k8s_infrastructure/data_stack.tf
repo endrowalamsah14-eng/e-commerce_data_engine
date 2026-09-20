@@ -44,7 +44,19 @@ resource "helm_release" "temporal_postgresql" {
     }
     primary = {
       persistence = {
-        enabled = false
+        enabled      = true
+        storageClass = "local-path"
+        size         = "8Gi"
+      }
+      resources = {
+        requests = {
+          cpu    = "250m"
+          memory = "512Mi"
+        }
+        limits = {
+          cpu    = "500m"
+          memory = "1Gi"
+        }
       }
     }
   })]
