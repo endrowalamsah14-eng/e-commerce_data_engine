@@ -19,7 +19,7 @@ resources:
     memory: 1Gi
 
 persistence:
-  enabled: false
+  enabled: true
 
 # ---------------------------------------------------------------------
 # BIG RED BUTTON MAGIC: AUTOMATED BUCKET PROVISIONING

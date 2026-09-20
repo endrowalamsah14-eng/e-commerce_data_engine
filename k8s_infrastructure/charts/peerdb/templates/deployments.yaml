@@ -71,16 +71,18 @@ spec:
               value: temporal-frontend.emarkrtz-production.svc.cluster.local:7233
             - name: PEERDB_TEMPORAL_NAMESPACE
               value: default
+            # --- FIX: Secret MinIO alignment ---
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: minio
-                  key: rootUser
+                  name: peerdb-secrets
+                  key: minio-access-key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: minio
-                  key: rootPassword
+                  name: peerdb-secrets
+                  key: minio-secret-key
+            # --------------------------------------
             - name: AWS_REGION
               value: us-east-1
             - name: AWS_ENDPOINT
@@ -125,16 +127,18 @@ spec:
               value: temporal-frontend.emarkrtz-production.svc.cluster.local:7233
             - name: PEERDB_TEMPORAL_NAMESPACE
               value: default
+            # --- FIX: Secret MinIO alignment ---
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: minio
-                  key: rootUser
+                  name: peerdb-secrets
+                  key: minio-access-key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: minio
-                  key: rootPassword
+                  name: peerdb-secrets
+                  key: minio-secret-key
+            # --------------------------------------
             - name: AWS_REGION
               value: us-east-1
             - name: AWS_ENDPOINT

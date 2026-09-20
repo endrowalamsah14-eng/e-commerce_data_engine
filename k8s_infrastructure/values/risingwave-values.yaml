@@ -11,16 +11,16 @@ tags:
 
 etcd:
   persistence:
-    enabled: false
+    enabled: true
 
 minio:
   persistence:
-    enabled: false
+    enabled: true
 
 postgresql:
   primary:
     persistence:
-      enabled: false
+      enabled: true
 
 # 1. The Metadata Management Node
 metaNode:

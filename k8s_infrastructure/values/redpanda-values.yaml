@@ -7,6 +7,7 @@ statefulset:
   replicas: 1
 
 config:
+  node: {} # <-- CRITICAL: Required empty node block to prevent API 400 Bad Request
   cluster:
     developer_mode: true
     # Strict Data Contract: Disable auto-creation to prevent rogue topics
@@ -21,7 +22,7 @@ resources:
 
 storage:
   persistentVolume:
-    enabled: false
+    enabled: true
 
 # =====================================================================
 # 🖥️ REDPANDA CONSOLE (THE DASHBOARD)
@@ -37,7 +38,7 @@ console:
 # ⚙️ BIG RED BUTTON MAGIC: AUTOMATED TOPIC PROVISIONING
 # =====================================================================
 post_install_job:
-  enabled: false
+  enabled: false # <-- TEMPORARY: Keep false until broker is fully stable
   podTemplate:
     spec:
       containers:
@@ -46,6 +47,9 @@ post_install_job:
           command: ["/bin/bash", "-c"]
           args:
             - |
+              # Show the way to Redpanda Broker
+              export REDPANDA_BROKERS="redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"
+              
               # Create 3 partitions for each master table to map the 3 PostgreSQL Shards
               rpk topic create cdc.all_shards.stores -p 3
               rpk topic create cdc.all_shards.products -p 3
