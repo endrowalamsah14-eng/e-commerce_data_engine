@@ -7,4 +7,4 @@ minio:
   accessKey: _peerdb_minioadmin
   secretKey: _peerdb_minioadmin
 temporal:
-  address: "temporal-frontend:7233"
+  address: "10.102.243.146:7233"
