@@ -13,16 +13,14 @@ resource "helm_release" "local_path_provisioner" {
   chart      = "local-path-provisioner"
   namespace  = "kube-system"
 
-  set {
-    name  = "storageClass.defaultClass"
-    value = "true"
-  }
-}
-
-resource "kubernetes_namespace" "scylla_operator" {
-  metadata {
-    name = "scylla-operator"
-  }
+  # FIXED: Replaced "set" blocks with yamlencode to resolve IDE parsing errors
+  values = [
+    yamlencode({
+      storageClass = {
+        defaultClass = true
+      }
+    })
+  ]
 }
 
 resource "helm_release" "temporal_postgresql" {
@@ -70,26 +68,14 @@ resource "helm_release" "cert_manager" {
   namespace        = "cert-manager"
   create_namespace = true
 
-  set {
-    name  = "crds.enabled"
-    value = "true"
-  }
-}
-
-resource "helm_release" "scylla_operator" {
-  name             = "scylla-operator"
-  repository       = "https://scylla-operator-charts.storage.googleapis.com/stable"
-  chart            = "scylla-operator"
-  version          = "v1.22.0"
-  namespace        = kubernetes_namespace.scylla_operator.metadata[0].name
-  create_namespace = false
-
-  set {
-    name  = "replicas"
-    value = "1"
-  }
-
-  depends_on = [kubernetes_namespace.scylla_operator, helm_release.cert_manager]
+  # FIXED: Replaced "set" block with yamlencode for cleaner IDE integration
+  values = [
+    yamlencode({
+      crds = {
+        enabled = true
+      }
+    })
+  ]
 }
 
 # ==============================================================================
@@ -139,7 +125,6 @@ resource "helm_release" "benthos" {
   
   values = [file("${path.module}/values/benthos-values.yaml")]
 
-  # Benthos routing requires the message bus to be ready
   depends_on = [helm_release.redpanda]
 }
 
@@ -147,16 +132,14 @@ resource "helm_release" "benthos" {
 # 4. THE DESTINATIONS (TRIPLE-PRONGED ATTACK)
 # ==============================================================================
 
-# Route 1: Hot Operational Store (FIXED - OFFICIAL REPOSITORY)
-resource "helm_release" "scylladb" {
-  name             = "scylladb"
-  repository       = "https://scylla-operator-charts.storage.googleapis.com/stable"
-  chart            = "scylla"
+# Route 1: Hot Operational Store (ScyllaDB removed, replaced with Redis)
+resource "helm_release" "redis" {
+  name             = "redis"
+  repository       = "https://charts.bitnami.com/bitnami"
+  chart            = "redis"
   namespace        = kubernetes_namespace.data_stack.metadata[0].name
   
-  values = [file("${path.module}/values/scylladb-values.yaml")]
-
-  depends_on = [helm_release.scylla_operator]
+  values = [file("${path.module}/values/redis-values.yaml")]
 }
 
 # Route 2: Real-Time DB & Alerts
@@ -188,7 +171,6 @@ resource "helm_release" "starrocks" {
   
   values = [file("${path.module}/values/starrocks-values.yaml")]
 
-  # Compute engine requires Lakehouse storage to be provisioned first
   depends_on = [helm_release.minio]
 }
 

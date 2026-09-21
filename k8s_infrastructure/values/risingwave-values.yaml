@@ -22,6 +22,13 @@ postgresql:
     persistence:
       enabled: true
 
+# ADDED: Enable RisingWave Console (Dashboard UI)
+console:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 5001
+
 # 1. The Metadata Management Node
 metaNode:
   replicaCount: 1

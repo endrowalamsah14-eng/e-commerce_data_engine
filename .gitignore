@@ -23,6 +23,7 @@ groenery-datalake/
 .terraform.lock.hcl
 *.tfvars
 *.tfvars.json
+terraform.exe
 
 # =========================
 # 3. PYTHON & ENVIRONMENTS
