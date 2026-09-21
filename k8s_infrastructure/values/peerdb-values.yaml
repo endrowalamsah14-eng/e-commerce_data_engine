@@ -6,3 +6,5 @@ peerdb:
 minio:
   accessKey: _peerdb_minioadmin
   secretKey: _peerdb_minioadmin
+temporal:
+  address: "temporal-frontend.emarkrtz-production.svc.cluster.local:7233"

@@ -2,6 +2,13 @@
 # REDIS VALUES - HOT OPERATIONAL STORE (HETZNER VPS OPTIMIZED)
 # =====================================================================
 
+# Adding an image configuration with a valid tag to fix ImagePullBackOff
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  tag: "latest"
+  pullPolicy: IfNotPresent
+    
 # Using standalone architecture to save resources on the current VPS
 architecture: standalone
 
@@ -24,3 +31,4 @@ master:
     limits:
       cpu: 250m
       memory: 256Mi
+

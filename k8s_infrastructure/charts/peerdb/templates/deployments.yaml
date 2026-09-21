@@ -68,7 +68,7 @@ spec:
             - name: PEERDB_CATALOG_DATABASE
               value: postgres
             - name: TEMPORAL_HOST_PORT
-              value: temporal-frontend.emarkrtz-production.svc.cluster.local:7233
+              value: {{ .Values.temporal.address | quote }}
             - name: PEERDB_TEMPORAL_NAMESPACE
               value: default
             # --- FIX: Secret MinIO alignment ---

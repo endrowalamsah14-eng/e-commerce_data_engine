@@ -132,14 +132,16 @@ resource "helm_release" "benthos" {
 # 4. THE DESTINATIONS (TRIPLE-PRONGED ATTACK)
 # ==============================================================================
 
-# Route 1: Hot Operational Store (ScyllaDB removed, replaced with Redis)
 resource "helm_release" "redis" {
-  name             = "redis"
-  repository       = "https://charts.bitnami.com/bitnami"
-  chart            = "redis"
-  namespace        = kubernetes_namespace.data_stack.metadata[0].name
-  
+  name       = "redis"
+  repository = "oci://registry-1.docker.io/bitnamicharts" # Migrate to an OCI registry
+  chart      = "redis"
+  version    = "19.6.1"
+  namespace  = kubernetes_namespace.data_stack.metadata[0].name
+
   values = [file("${path.module}/values/redis-values.yaml")]
+
+  wait = false
 }
 
 # Route 2: Real-Time DB & Alerts
