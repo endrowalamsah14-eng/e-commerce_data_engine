@@ -30,7 +30,10 @@ kafka_payload = {
         "name": TARGET_PEER_NAME,
         "type": 9,
         "kafkaConfig": {
-            "brokers": "redpanda-external.emarkrtz-production.svc.cluster.local:9093"
+            # FIX: Target the correct broker port and pass as an array
+            "brokers": ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"],
+            # CRITICAL: Programmatically toggle 'Disable TLS?' to ON 
+            "requireTls": False
         }
     },
     "allowUpdate": True,
