@@ -30,10 +30,15 @@ kafka_payload = {
         "name": TARGET_PEER_NAME,
         "type": 9,
         "kafkaConfig": {
-            # FIX: Target the correct broker port and pass as an array
-            "brokers": ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"],
-            # CRITICAL: Programmatically toggle 'Disable TLS?' to ON 
-            "requireTls": False
+            # FIX: The API explicitly demands the key 'servers', not 'brokers'
+            "servers": [
+                "redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"
+            ],
+            # CRITICAL: Exact TLS and auth settings derived from the UI payload
+            "disableTls": True,
+            "requireTls": False,
+            "skipCertVerification": False,
+            "authType": 0
         }
     },
     "allowUpdate": True,
