@@ -25,6 +25,7 @@ server:
             connectProtocol: tcp
             user: temporal
             password: temporal-dev-password
+            manageSchema: true  # <--- Aturan baru pengganti schema.setup
         visibility:
           sql:
             pluginName: postgres12
@@ -34,6 +35,7 @@ server:
             connectProtocol: tcp
             user: temporal
             password: temporal-dev-password
+            manageSchema: true  # <--- Aturan baru pengganti schema.setup
 
 internal-frontend:
   resources:
@@ -68,11 +70,3 @@ worker:
     limits:
       cpu: 250m
       memory: 256Mi
-
-# PELATUK OTOMATIS PEMBUAT TABEL & DATABASE
-schema:
-  setup:
-    enabled: true
-    createDatabase: true
-  update:
-    enabled: true
