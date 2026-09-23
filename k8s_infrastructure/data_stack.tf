@@ -13,7 +13,6 @@ resource "helm_release" "local_path_provisioner" {
   chart      = "local-path-provisioner"
   namespace  = "kube-system"
 
-  # FIXED: Replaced "set" blocks with yamlencode to resolve IDE parsing errors
   values = [
     yamlencode({
       storageClass = {
@@ -68,7 +67,6 @@ resource "helm_release" "cert_manager" {
   namespace        = "cert-manager"
   create_namespace = true
 
-  # FIXED: Replaced "set" block with yamlencode for cleaner IDE integration
   values = [
     yamlencode({
       crds = {
@@ -104,14 +102,74 @@ resource "helm_release" "redpanda" {
   values = [file("${path.module}/values/redpanda-values.yaml")]
 }
 
-resource "helm_release" "peerdb" {
-  name      = "peerdb"
-  chart     = "${path.module}/charts/peerdb"
-  namespace = kubernetes_namespace.data_stack.metadata[0].name
+# ==============================================================================
+# 2.5 DEBEZIUM KAFKA CONNECT (REPLACING PEERDB)
+# ==============================================================================
+resource "kubernetes_deployment" "debezium" {
+  metadata {
+    name      = "debezium-connect"
+    namespace = kubernetes_namespace.data_stack.metadata[0].name
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "debezium-connect"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "debezium-connect"
+        }
+      }
+      spec {
+        container {
+          name  = "debezium"
+          image = "quay.io/debezium/connect:2.4"
+          port {
+            container_port = 8083
+          }
+          env {
+            name  = "BOOTSTRAP_SERVERS"
+            value = "redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"
+          }
+          env {
+            name  = "GROUP_ID"
+            value = "debezium-cluster"
+          }
+          env {
+            name  = "CONFIG_STORAGE_TOPIC"
+            value = "debezium_configs"
+          }
+          env {
+            name  = "OFFSET_STORAGE_TOPIC"
+            value = "debezium_offsets"
+          }
+          env {
+            name  = "STATUS_STORAGE_TOPIC"
+            value = "debezium_statuses"
+          }
+        }
+      }
+    }
+  }
+}
 
-  values = [file("${path.module}/values/peerdb-values.yaml")]
-
-  depends_on = [helm_release.temporal, helm_release.redpanda]
+resource "kubernetes_service" "debezium_svc" {
+  metadata {
+    name      = "debezium-api"
+    namespace = kubernetes_namespace.data_stack.metadata[0].name
+  }
+  spec {
+    selector = {
+      app = "debezium-connect"
+    }
+    port {
+      port        = 8083
+      target_port = 8083
+    }
+  }
 }
 
 # ==============================================================================
@@ -131,10 +189,9 @@ resource "helm_release" "benthos" {
 # ==============================================================================
 # 4. THE DESTINATIONS (TRIPLE-PRONGED ATTACK)
 # ==============================================================================
-
 resource "helm_release" "redis" {
   name       = "redis"
-  repository = "oci://registry-1.docker.io/bitnamicharts" # Migrate to an OCI registry
+  repository = "oci://registry-1.docker.io/bitnamicharts" 
   chart      = "redis"
   version    = "19.6.1"
   namespace  = kubernetes_namespace.data_stack.metadata[0].name
@@ -144,7 +201,6 @@ resource "helm_release" "redis" {
   wait = false
 }
 
-# Route 2: Real-Time DB & Alerts
 resource "helm_release" "risingwave" {
   name             = "risingwave"
   repository       = "https://risingwavelabs.github.io/helm-charts"
@@ -154,7 +210,6 @@ resource "helm_release" "risingwave" {
   values = [file("${path.module}/values/risingwave-values.yaml")]
 }
 
-# Route 3: Historical Lakehouse (Storage)
 resource "helm_release" "minio" {
   name             = "minio"
   repository       = "https://charts.min.io/"
@@ -164,7 +219,6 @@ resource "helm_release" "minio" {
   values = [file("${path.module}/values/minio-values.yaml")]
 }
 
-# Route 3: Historical Lakehouse (Compute & OLAP)
 resource "helm_release" "starrocks" {
   name             = "starrocks"
   repository       = "https://starrocks.github.io/starrocks-kubernetes-operator"

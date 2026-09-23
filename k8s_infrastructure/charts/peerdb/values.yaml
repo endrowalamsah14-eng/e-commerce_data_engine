@@ -1,8 +1,0 @@
-imageTag: stable-v0.37.7
-catalog:
-  password: peerdb-catalog-password
-peerdb:
-  password: peerdb-password
-minio:
-  accessKey: _peerdb_minioadmin
-  secretKey: _peerdb_minioadmin

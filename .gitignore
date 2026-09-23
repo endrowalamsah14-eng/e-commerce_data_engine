@@ -1,5 +1,5 @@
 # =========================
-# 1. DATA VOLUMES (THE TRAGEDY PREVENTION)
+# 1. DATA VOLUMES & ARCHIVES
 # =========================
 # Gembok folder data MinIO dan PostgreSQL biar kaga nyangkut lagi
 minio_data/
@@ -10,8 +10,15 @@ groenery-datalake/
 
 # Cegah file mock data nyasar
 *.csv
-*.json
 *.parquet
+*.json
+# KECUALIKAN config Debezium kita biar tetep ke-track sama Git!
+!cdc_config/debezium-config.json
+
+# Blokir file arsip raksasa (kayak redis-latest.tar)
+*.tar
+*.tar.gz
+*.zip
 
 # =========================
 # 2. TERRAFORM SHIELD

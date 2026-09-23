@@ -1,0 +1,50 @@
+[
+  {
+    "name": "cdc-emarkrtz-shard-01",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "plugin.name": "pgoutput",
+      "database.hostname": "116.203.123.158",
+      "database.port": "5432",
+      "database.user": "emarkrtz_admin",
+      "database.password": "EnterpriseSkew2026!",
+      "database.dbname": "emarkrtz_shard_01",
+      "topic.prefix": "emarkrtz_shard_01",
+      "table.include.list": "public.stores,public.products,public.inventory,public.customers,public.orders,public.order_lines",
+      "topic.creation.default.replication.factor": 1,
+      "topic.creation.default.partitions": 3
+    }
+  },
+  {
+    "name": "cdc-emarkrtz-shard-02",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "plugin.name": "pgoutput",
+      "database.hostname": "116.203.123.158",
+      "database.port": "5433",
+      "database.user": "emarkrtz_admin",
+      "database.password": "EnterpriseSkew2026!",
+      "database.dbname": "emarkrtz_shard_02",
+      "topic.prefix": "emarkrtz_shard_02",
+      "table.include.list": "public.stores,public.products,public.inventory,public.customers,public.orders,public.order_lines",
+      "topic.creation.default.replication.factor": 1,
+      "topic.creation.default.partitions": 3
+    }
+  },
+  {
+    "name": "cdc-emarkrtz-shard-03",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "plugin.name": "pgoutput",
+      "database.hostname": "116.203.123.158",
+      "database.port": "5434",
+      "database.user": "emarkrtz_admin",
+      "database.password": "EnterpriseSkew2026!",
+      "database.dbname": "emarkrtz_shard_03",
+      "topic.prefix": "emarkrtz_shard_03",
+      "table.include.list": "public.stores,public.products,public.inventory,public.customers,public.orders,public.order_lines",
+      "topic.creation.default.replication.factor": 1,
+      "topic.creation.default.partitions": 3
+    }
+  }
+]
