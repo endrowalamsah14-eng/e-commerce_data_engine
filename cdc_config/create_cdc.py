@@ -24,15 +24,12 @@ tables_to_sync = ["stores", "products", "inventory", "customers", "orders", "ord
 
 print("🛠️ [Phase 1] Registering infrastructure peers to PeerDB...")
 
-# 1. Register the target destination (Redpanda/Kafka - Type 9)
 kafka_payload = {
     "peer": {
         "name": TARGET_PEER_NAME,
         "type": 9,
         "kafkaConfig": {
-            "servers": [
-                "redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"
-            ],
+            "servers": ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"],
             "disableTls": True,
             "requireTls": False,
             "skipCertVerification": False,
@@ -52,7 +49,6 @@ try:
 except Exception as e:
     print(f"❌ Error registering Redpanda target: {e}")
 
-# 2. Register source databases (PostgreSQL Shards - Type 3)
 for shard in shards_config:
     pg_payload = {
         "peer": {
@@ -85,10 +81,6 @@ time.sleep(15)
 
 # 3. Provision the CDC Mirrors
 for shard in shards_config:
-    
-    # ==============================================================================
-    # LOGIC NAMING ANALOGI LU CHIEF (Super Eksplisit)
-    # ==============================================================================
     s_name = shard["name"]
     d_name = TARGET_PEER_NAME
     f_job_name = f"cdc_{s_name}_to_redpanda"
@@ -111,34 +103,34 @@ for shard in shards_config:
     
     flow_payload = {
         "connectionConfigs": {
-            "sourceName": s_name,             # <-- Injeksi persis sesuai tangkapan layar lu
-            "destinationName": d_name,        
-            "flowJobName": f_job_name         # <-- Injeksi persis sesuai tangkapan layar lu
+            "sourceName": s_name,
+            "destinationName": d_name,
+            "flowJobName": f_job_name
         },
         "cdcStagingPath": "",
-        "destinationName": d_name,            
+        "destinationName": d_name,
         "disablePeerDBColumns": False,
         "doInitialSnapshot": True,
         "env": {},
         "envString": "",
         "flags": [],
-        "flowJobName": f_job_name,            # <-- Injeksi persis sesuai tangkapan layar lu
+        "flowJobName": f_job_name,
         "idleTimeoutSeconds": 60,
         "initialSnapshotOnly": False,
         "maxBatchSize": 250000,
-        "publicationName": "",
+        "publicationName": "peerdb_pub",   # KUNCI 1: Pakai manual publication
         "queryCdcPullSyncParallelism": 0,
         "replicationSlotName": "",
         "resync": False,
         "script": "",
-        "skipValidation": True,               # HARGA MATI: Matikan paksa pre-flight check API yang cacat
+        "skipValidation": True,            # KUNCI 2: Bungkap mulut proses validasinya!
         "snapshotMaxParallelWorkers": 4,
         "snapshotNumPartitionsOverride": 0,
         "snapshotNumRowsPerPartition": 250000,
         "snapshotNumTablesInParallel": 1,
         "snapshotStagingPath": "",
         "softDeleteColName": "_PEERDB_IS_DELETED",
-        "sourceName": s_name,                 
+        "sourceName": s_name,
         "syncedAtColName": "_PEERDB_SYNCED_AT",
         "system": 0,
         "tableMappings": table_mappings,
@@ -147,12 +139,14 @@ for shard in shards_config:
     
     try:
         print(f"⏳ Provisioning mirror: {f_job_name}...")
+        # KITA TEMBAK LANGSUNG KE CREATE TANPA MAMPIR KE ENDPOINT VALIDASI
         res = requests.post(FLOWS_API_URL, headers=HEADERS, data=json.dumps(flow_payload))
         
         if res.status_code == 200:
             print(f"✅ Success! Pipeline {f_job_name} is now airborne.")
         else:
             print(f"❌ Failed to provision {f_job_name}. Status: {res.status_code} | Response: {res.text}")
+            
     except Exception as e:
         print(f"⚠️ Connection error occurred while processing {s_name}: {e}")
 
