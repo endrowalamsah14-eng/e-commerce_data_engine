@@ -13,28 +13,23 @@ PG_USER = "emarkrtz_admin"
 PG_PASS = "EnterpriseSkew2026!"
 TARGET_PEER_NAME = "redpanda_target"
 
-# Configuration for source shards and their respective ports
 shards_config = [
     {"name": "emarkrtz_shard_01", "port": 5432},
     {"name": "emarkrtz_shard_02", "port": 5433},
     {"name": "emarkrtz_shard_03", "port": 5434}
 ]
 
-tables_to_sync = ["stores", "products", "inventory", "customers", "orders", "order_lines"]
-
 print("🛠️ [Phase 1] Registering infrastructure peers to PeerDB...")
 
-# 1. Register the target destination (Redpanda/Kafka - Type 9)
+# 1. Register the target destination (Redpanda/Kafka)
 kafka_payload = {
     "peer": {
         "name": TARGET_PEER_NAME,
         "type": 9,
         "kafkaConfig": {
-            # FIX: The API explicitly demands the key 'servers', not 'brokers'
             "servers": [
                 "redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9093"
             ],
-            # CRITICAL: Exact TLS and auth settings derived from the UI payload
             "disableTls": True,
             "requireTls": False,
             "skipCertVerification": False,
@@ -50,11 +45,11 @@ try:
     if res.status_code == 200:
         print(f"✅ Target Peer successfully registered: {TARGET_PEER_NAME}")
     else:
-        print(f"⚠️ Target Peer registration failed or already exists. API Response: {res.text}")
+        print(f"⚠️ Target Peer registration status: {res.text}")
 except Exception as e:
     print(f"❌ Error registering Redpanda target: {e}")
 
-# 2. Register source databases (PostgreSQL Shards - Type 3)
+# 2. Register source databases (PostgreSQL)
 for shard in shards_config:
     pg_payload = {
         "peer": {
@@ -75,38 +70,21 @@ for shard in shards_config:
     try:
         res = requests.post(PEERS_API_URL, headers=HEADERS, data=json.dumps(pg_payload))
         if res.status_code == 200:
-            print(f"✅ Source Peer successfully registered: {shard['name']} (Port: {shard['port']})")
+            print(f"✅ Source Peer successfully registered: {shard['name']}")
         else:
-            print(f"⚠️ Failed to register {shard['name']}. API Response: {res.text}")
+            print(f"⚠️ Failed to register {shard['name']}. Response: {res.text}")
     except Exception as e:
         print(f"❌ Error registering {shard['name']}: {e}")
 
 print("\n🚀 [Phase 2] Assembling CDC Pipelines (Flows)...")
-# Brief delay to ensure Temporal workers process the new peers
 time.sleep(2) 
 
-# 3. Provision the CDC Mirrors
+# 3. Provision the CDC Mirrors with 100% Hardcoded UI Payload
 for shard in shards_config:
     shard_name = shard["name"]
     mirror_name = f"cdc_{shard_name}_to_redpanda"
     
-    # Mapping tables adjusted to the strict verbose schema discovered from the UI payload
-    table_mappings = [
-        {
-            "sourceTableIdentifier": f"public.{table}",
-            "destinationTableIdentifier": f"cdc.all_shards.{table}",
-            "bigqueryCdcEventsFunction": 1,
-            "columns": [],
-            "engine": 0,
-            "exclude": [],
-            "partitionByExpr": "",
-            "partitionKey": "",
-            "policyName": "",
-            "queryCdcWatermarkColumn": "",
-            "shardingKey": ""
-        } for table in tables_to_sync
-    ]
-    
+    # MONOLITHIC PAYLOAD: No loops, no shortcuts. Exactly matching the UI dump.
     flow_payload = {
         "connectionConfigs": {
             "sourceName": shard_name,
@@ -129,7 +107,6 @@ for shard in shards_config:
         "replicationSlotName": "",
         "resync": False,
         "script": "",
-        # RESTORED: Table mappings are now strictly formatted, Postgres validation will pass
         "skipValidation": False,
         "snapshotMaxParallelWorkers": 4,
         "snapshotNumPartitionsOverride": 0,
@@ -140,7 +117,86 @@ for shard in shards_config:
         "sourceName": shard_name,
         "syncedAtColName": "_PEERDB_SYNCED_AT",
         "system": 0,
-        "tableMappings": table_mappings,
+        "tableMappings": [
+            {
+                "sourceTableIdentifier": "public.customers",
+                "destinationTableIdentifier": "public.customers",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            },
+            {
+                "sourceTableIdentifier": "public.inventory",
+                "destinationTableIdentifier": "public.inventory",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            },
+            {
+                "sourceTableIdentifier": "public.order_lines",
+                "destinationTableIdentifier": "public.order_lines",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            },
+            {
+                "sourceTableIdentifier": "public.orders",
+                "destinationTableIdentifier": "public.orders",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            },
+            {
+                "sourceTableIdentifier": "public.products",
+                "destinationTableIdentifier": "public.products",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            },
+            {
+                "sourceTableIdentifier": "public.stores",
+                "destinationTableIdentifier": "public.stores",
+                "bigqueryCdcEventsFunction": 1,
+                "columns": [],
+                "engine": 0,
+                "exclude": [],
+                "partitionByExpr": "",
+                "partitionKey": "",
+                "policyName": "",
+                "queryCdcWatermarkColumn": "",
+                "shardingKey": ""
+            }
+        ],
         "version": 0
     }
     
