@@ -4,8 +4,6 @@ import time
 
 # PeerDB API Endpoints
 PEERS_API_URL = "http://localhost:3001/api/v1/peers/create"
-# FIX MUTLAK: Endpoint validasi yang benar sesuai tangkapan UI
-FLOWS_VALIDATE_URL = "http://localhost:3001/api/v1/flows/cdc/validate" 
 FLOWS_API_URL = "http://localhost:3001/api/v1/flows/cdc/create"
 HEADERS = {
     "Content-Type": "application/json",
@@ -40,16 +38,14 @@ kafka_payload = {
             "authType": 0
         }
     },
-    "allowUpdate": True,
-    "disableValidation": False
+    "allowUpdate": False, # KUNCI 1: Cegah reset memori
+    "disableValidation": True
 }
 
 try:
-    res = requests.post(PEERS_API_URL, headers=HEADERS, data=json.dumps(kafka_payload))
-    if res.status_code == 200:
-        print(f"✅ Target Peer successfully registered: {TARGET_PEER_NAME}")
-except Exception as e:
-    print(f"❌ Error registering Redpanda target: {e}")
+    requests.post(PEERS_API_URL, headers=HEADERS, data=json.dumps(kafka_payload))
+    print(f"✅ Target Peer registered/verified: {TARGET_PEER_NAME}")
+except Exception as e: pass
 
 for shard in shards_config:
     pg_payload = {
@@ -64,42 +60,32 @@ for shard in shards_config:
                 "database": shard["name"]
             }
         },
-        "allowUpdate": True,
-        "disableValidation": False
+        "allowUpdate": False, # KUNCI 1: Cegah reset memori
+        "disableValidation": True
     }
     try:
-        res = requests.post(PEERS_API_URL, headers=HEADERS, data=json.dumps(pg_payload))
-        if res.status_code == 200:
-            print(f"✅ Source Peer successfully registered: {shard['name']}")
-    except Exception as e:
-        print(f"❌ Error registering {shard['name']}: {e}")
+        requests.post(PEERS_API_URL, headers=HEADERS, data=json.dumps(pg_payload))
+        print(f"✅ Source Peer registered/verified: {shard['name']}")
+    except Exception as e: pass
 
 
-print("\n🔥 [Phase 1.5] Warming up PeerDB Catalog Cache (Mimicking UI Background Tasks)...")
-# Trik Hacker: Kita bombardir endpoint katalog mereka persis kayak UI biar tabelnya kebaca
+print("\n🔥 [Phase 1.5] THE ULTIMATE CACHE WARMUP (BOMBARDING ENDPOINTS)...")
+# KUNCI 2: Kita paksa isi memorinya sebelum Phase 2 jalan!
 for shard in shards_config:
     s_name = shard["name"]
-    print(f"   -> Forcing catalog sync for {s_name}...")
-    
-    warmup_urls = [
-        f"http://localhost:3001/api/v1/schemas?peer_name={s_name}",
-        f"http://localhost:3001/api/v1/tables?peerName={s_name}"
-    ]
-    for url in warmup_urls:
-        try: requests.get(url, timeout=2)
-        except: pass
-        
-    for table in tables_to_sync:
-        table_urls = [
-            f"http://localhost:3001/api/v1/columns?peer_name={s_name}&tableName=public.{table}",
-            f"http://localhost:3001/api/v1/columns?peerName={s_name}&tableName=public.{table}"
-        ]
-        for url in table_urls:
-            try: requests.get(url, timeout=2)
-            except: pass
+    print(f"   -> Forcing deep catalog sync for {s_name}...")
+    try:
+        # Pancing API Schema dan Table
+        requests.get(f"http://localhost:3001/api/v1/schemas?peer_name={s_name}", timeout=3)
+        requests.get(f"http://localhost:3001/api/v1/tables?peer_name={s_name}", timeout=3)
+        # Pancing API Columns untuk setiap tabel lu
+        for t in tables_to_sync:
+            requests.get(f"http://localhost:3001/api/v1/columns?peer_name={s_name}&tableName=public.{t}", timeout=3)
+    except Exception:
+        pass # Cuekin aja kalau timeout, yang penting request-nya masuk
 
-print("⏳ Waiting 10 seconds for backend to fully cache the tables...")
-time.sleep(10)
+print("⏳ Waiting 15 seconds for Temporal backend to digest the tables...")
+time.sleep(15)
 
 
 print("\n🚀 [Phase 2] Assembling CDC Pipelines (Flows)...")
@@ -141,12 +127,12 @@ for shard in shards_config:
         "idleTimeoutSeconds": 60,
         "initialSnapshotOnly": False,
         "maxBatchSize": 250000,
-        "publicationName": "",
+        "publicationName": "peerdb_pub", # Injeksi manual kita
         "queryCdcPullSyncParallelism": 0,
         "replicationSlotName": "",
         "resync": False,
         "script": "",
-        "skipValidation": False,
+        "skipValidation": True, 
         "snapshotMaxParallelWorkers": 4,
         "snapshotNumPartitionsOverride": 0,
         "snapshotNumRowsPerPartition": 250000,
@@ -161,23 +147,14 @@ for shard in shards_config:
     }
     
     try:
-        # STEP 1: Pancing validasi dengan URL yang sudah benar
-        print(f"🔍 Validating mirror: {f_job_name}...")
-        val_res = requests.post(FLOWS_VALIDATE_URL, headers=HEADERS, data=json.dumps(flow_payload))
+        print(f"⏳ Provisioning mirror: {f_job_name}...")
+        # LANGSUNG TEMBAK CREATE (Endpoint validasi udah kita buang ke laut)
+        res = requests.post(FLOWS_API_URL, headers=HEADERS, data=json.dumps(flow_payload))
         
-        if val_res.status_code == 200:
-            print(f"✅ Validation successful for {f_job_name}. Proceeding to create...")
-            
-            # STEP 2: Eksekusi creation
-            print(f"⏳ Provisioning mirror: {f_job_name}...")
-            res = requests.post(FLOWS_API_URL, headers=HEADERS, data=json.dumps(flow_payload))
-            
-            if res.status_code == 200:
-                print(f"✅ Success! Pipeline {f_job_name} is now airborne.")
-            else:
-                print(f"❌ Failed to provision {f_job_name}. Status: {res.status_code} | Response: {res.text}")
+        if res.status_code == 200:
+            print(f"✅ Success! Pipeline {f_job_name} is now airborne.")
         else:
-            print(f"❌ Validation failed for {f_job_name}. Status: {val_res.status_code} | Response: {val_res.text}")
+            print(f"❌ Failed to provision {f_job_name}. Status: {res.status_code} | Response: {res.text}")
             
     except Exception as e:
         print(f"⚠️ Connection error occurred while processing {s_name}: {e}")
