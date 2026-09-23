@@ -90,11 +90,20 @@ for shard in shards_config:
     shard_name = shard["name"]
     mirror_name = f"cdc_{shard_name}_to_redpanda"
     
-    # Mapping tables adjusted to camelCase format required by API v0.37.7
+    # Mapping tables adjusted to the strict verbose schema discovered from the UI payload
     table_mappings = [
         {
             "sourceTableIdentifier": f"public.{table}",
-            "destinationTableIdentifier": f"cdc.all_shards.{table}"
+            "destinationTableIdentifier": f"cdc.all_shards.{table}",
+            "bigqueryCdcEventsFunction": 1,
+            "columns": [],
+            "engine": 0,
+            "exclude": [],
+            "partitionByExpr": "",
+            "partitionKey": "",
+            "policyName": "",
+            "queryCdcWatermarkColumn": "",
+            "shardingKey": ""
         } for table in tables_to_sync
     ]
     
@@ -120,8 +129,8 @@ for shard in shards_config:
         "replicationSlotName": "",
         "resync": False,
         "script": "",
-        # FIX: Bypass the buggy Postgres pre-flight syntax check
-        "skipValidation": True,
+        # RESTORED: Table mappings are now strictly formatted, Postgres validation will pass
+        "skipValidation": False,
         "snapshotMaxParallelWorkers": 4,
         "snapshotNumPartitionsOverride": 0,
         "snapshotNumRowsPerPartition": 250000,
