@@ -1,0 +1,33 @@
+# ==========================================
+# PROMETHEUS COST-OPS CONFIGURATION
+# ==========================================
+alertmanager:
+  enabled: false # Disabled to save RAM (email alerts for the portfolio are not needed)
+
+pushgateway:
+  enabled: false # Turned off for efficiency
+
+server:
+  global:
+    scrape_interval: 15s # Fetch metric data every 15 seconds
+  
+  # Small storage allocation because the cluster is destroyed daily
+  persistentVolume:
+    enabled: true
+    size: 2Gi
+    storageClass: "local-path"
+
+  # Hetzner CPU & RAM Usage Limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+# Disable heavy extra components
+kube-state-metrics:
+  enabled: true
+prometheus-node-exporter:
+  enabled: true

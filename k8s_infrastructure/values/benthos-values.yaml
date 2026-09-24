@@ -1,5 +1,5 @@
 # =====================================================================
-# BENTHOS VALUES - THE DATA CONTRACT & ROUTER (HETZNER VPS OPTIMIZED)
+# BENTHOS VALUES - THE DATA CONTRACT & ROUTER (BLUEPRINT 2.0)
 # =====================================================================
 
 replicaCount: 2
@@ -26,39 +26,59 @@ config:
 
   pipeline:
     processors:
+      # 1. Validasi Skema (Data Contract)
       - mapping: |
           root._contract_error = if this.store_id == null {
             "missing_store_id"
           } else if this.order_id == null {
             "missing_order_id"
-          } else if metadata("kafka_topic") == "cdc.all_shards.order_lines" && this.line_id == null {
+          } else if meta("kafka_topic") == "cdc.all_shards.order_lines" && this.line_id == null {
             "missing_line_id"
           } else {
             deleted()
           }
 
+      # 2. Penyematan Metadata & Flattening
       - mapping: |
+          root = this
           root.contract_error = this._contract_error
-          root.original_payload = if this._contract_error != null { this } else { deleted() }
-          root.id = if this._contract_error == null { this.order_id } else { deleted() }
-          root.store_identifier = if this._contract_error == null { this.store_id } else { deleted() }
-          root.ingested_at = if this._contract_error == null { now() } else { deleted() }
+          root.ingested_at = now()
 
   output:
     switch:
       cases:
+        # -------------------------------------------------------------
+        # JALUR KARANTINA: Data Cacat -> DLQ Redpanda
+        # -------------------------------------------------------------
         - check: this._contract_error != null
           output:
             kafka_franz:
               seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
               topic: "dlq.ingestion_errors"
+
+        # -------------------------------------------------------------
+        # JALUR 1 (HOT OPERATIONAL): Orders -> Redis K8s (In-Memory)
+        # -------------------------------------------------------------
         - check: meta("kafka_topic") == "cdc.all_shards.orders"
           output:
-            kafka_franz:
-              seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-              topic: "sink.scylladb.orders"
+            redis_hash:
+              url: "redis://redis-master.emarkrtz-production.svc.cluster.local:6379"
+              key: 'order:${! json("order_id") }'
+              walk_metadata: false
+              walk_json_object: true
+
+        # -------------------------------------------------------------
+        # JALUR 3 (ENTERPRISE LAKEHOUSE): Order Lines -> Serverless GCS
+        # -------------------------------------------------------------
         - check: meta("kafka_topic") == "cdc.all_shards.order_lines"
           output:
-            kafka_franz:
-              seed_brokers: ["redpanda-0.redpanda.emarkrtz-production.svc.cluster.local:9092"]
-              topic: "sink.minio.order_lines"
+            gcp_cloud_storage:
+              project: "emarkrtz-data-engine"
+              bucket: "emarkrtz-enterprise-datalake-2026"
+              # Path dinamis berdasarkan tanggal (Partisi Otomatis)
+              path: 'order_lines/date=${! timestamp("2006-01-02") }/${! uuid_v4() }.json'
+              max_in_flight: 64
+              # Batching 500 baris atau 5 detik sebelum dikirim (Cost-Ops)
+              batching:
+                count: 500
+                period: "5s"

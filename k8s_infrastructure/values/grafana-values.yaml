@@ -1,0 +1,30 @@
+# ==========================================
+# GRAFANA ENTERPRISE DASHBOARD CONFIGURATION
+# ==========================================
+adminPassword: "admin" # Statis Password fo easy login
+
+persistence:
+  enabled: true
+  type: pvc
+  storageClassName: "local-path"
+  size: 2Gi
+
+# Auto-Wiring to Prometheus
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      # The internal Kubernetes URL points directly to the Prometheus service
+      url: http://prometheus-server.emarkrtz-production.svc.cluster.local
+      access: proxy
+      isDefault: true
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi

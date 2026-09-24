@@ -15,6 +15,11 @@ terraform {
       source  = "hashicorp/helm"
       version = "~> 2.17"
     }
+    # 🔥 NEW: Google Cloud Provider (Persiapan Blueprint 2.0)
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 5.0"
+    }
   }
 }
 

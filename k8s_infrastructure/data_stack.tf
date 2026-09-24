@@ -102,9 +102,6 @@ resource "helm_release" "redpanda" {
   values = [file("${path.module}/values/redpanda-values.yaml")]
 }
 
-# ==============================================================================
-# 2.5 DEBEZIUM KAFKA CONNECT (REPLACING PEERDB)
-# ==============================================================================
 resource "kubernetes_deployment" "debezium" {
   metadata {
     name      = "debezium-connect"
@@ -187,7 +184,7 @@ resource "helm_release" "benthos" {
 }
 
 # ==============================================================================
-# 4. THE DESTINATIONS (TRIPLE-PRONGED ATTACK)
+# 4. THE DESTINATIONS (BLUEPRINT 2.0)
 # ==============================================================================
 resource "helm_release" "redis" {
   name       = "redis"
@@ -201,6 +198,54 @@ resource "helm_release" "redis" {
   wait = false
 }
 
+# 🔥 NEW: RedisInsight DB Client (Port 5540)
+resource "kubernetes_deployment" "redisinsight" {
+  metadata {
+    name      = "redisinsight"
+    namespace = kubernetes_namespace.data_stack.metadata[0].name
+  }
+  spec {
+    replicas = 1
+    selector {
+      match_labels = {
+        app = "redisinsight"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          app = "redisinsight"
+        }
+      }
+      spec {
+        container {
+          name  = "redisinsight"
+          image = "redis/redisinsight:latest"
+          port {
+            container_port = 5540
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "redisinsight_svc" {
+  metadata {
+    name      = "redisinsight-svc"
+    namespace = kubernetes_namespace.data_stack.metadata[0].name
+  }
+  spec {
+    selector = {
+      app = "redisinsight"
+    }
+    port {
+      port        = 80
+      target_port = 5540
+    }
+  }
+}
+
 resource "helm_release" "risingwave" {
   name             = "risingwave"
   repository       = "https://risingwavelabs.github.io/helm-charts"
@@ -210,15 +255,6 @@ resource "helm_release" "risingwave" {
   values = [file("${path.module}/values/risingwave-values.yaml")]
 }
 
-resource "helm_release" "minio" {
-  name             = "minio"
-  repository       = "https://charts.min.io/"
-  chart            = "minio"
-  namespace        = kubernetes_namespace.data_stack.metadata[0].name
-  
-  values = [file("${path.module}/values/minio-values.yaml")]
-}
-
 resource "helm_release" "starrocks" {
   name             = "starrocks"
   repository       = "https://starrocks.github.io/starrocks-kubernetes-operator"
@@ -226,12 +262,11 @@ resource "helm_release" "starrocks" {
   namespace        = kubernetes_namespace.data_stack.metadata[0].name
   
   values = [file("${path.module}/values/starrocks-values.yaml")]
-
-  depends_on = [helm_release.minio]
+  # 🔥 MinIO dependency removed for Blueprint 2.0
 }
 
 # ==============================================================================
-# 5. BUSINESS INTELLIGENCE
+# 5. BUSINESS INTELLIGENCE & VISUALIZATION
 # ==============================================================================
 resource "helm_release" "metabase" {
   name             = "metabase"
@@ -242,4 +277,27 @@ resource "helm_release" "metabase" {
   values = [file("${path.module}/values/metabase-values.yaml")]
 
   depends_on = [helm_release.starrocks]
+}
+
+# ==============================================================================
+# 6. OBSERVABILITY (GRAFANA & PROMETHEUS)
+# ==============================================================================
+# 🔥 NEW: Prometheus for Cluster Health Monitoring
+resource "helm_release" "prometheus" {
+  name             = "prometheus"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "prometheus"
+  namespace        = kubernetes_namespace.data_stack.metadata[0].name
+  
+  values = [file("${path.module}/values/prometheus-values.yaml")]
+}
+
+# 🔥 NEW: Grafana for Hot Metrics and Dashboards
+resource "helm_release" "grafana" {
+  name             = "grafana"
+  repository       = "https://grafana.github.io/helm-charts"
+  chart            = "grafana"
+  namespace        = kubernetes_namespace.data_stack.metadata[0].name
+  
+  values = [file("${path.module}/values/grafana-values.yaml")]
 }
